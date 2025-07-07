@@ -1,4 +1,4 @@
-package controller
+package api
 
 import (
 	"net/http"
@@ -7,16 +7,16 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 
-	"github.com/market-data/pkg/marketservice"
+	"github.com/market-data/internal/domain/market"
 )
 
 // MarketController handles market data related endpoints
 type MarketController struct {
-	service *marketservice.Service
+	service *market.MarketService
 }
 
 // NewMarketController creates a new market controller
-func NewMarketController(service *marketservice.Service) *MarketController {
+func NewMarketController(service *market.MarketService) *MarketController {
 	return &MarketController{
 		service: service,
 	}
@@ -24,14 +24,7 @@ func NewMarketController(service *marketservice.Service) *MarketController {
 
 // RegisterRoutes registers the routes for the market controller
 func (c *MarketController) RegisterRoutes(router *gin.Engine) {
-	router.GET("/symbols", c.getSymbols)
-	router.GET("/data/:symbol", c.getMarketData)
-}
-
-// getSymbols handles the request to get all available symbols
-func (c *MarketController) getSymbols(ctx *gin.Context) {
-	symbols := c.service.GetAllSymbols()
-	ctx.JSON(http.StatusOK, symbols)
+	router.GET("/symbols/:symbol", c.getMarketData)
 }
 
 // getMarketData handles the request to get market data for a specific symbol
@@ -42,9 +35,9 @@ func (c *MarketController) getMarketData(ctx *gin.Context) {
 		return
 	}
 
-	marketData, err := c.service.GetMarketData(symbol)
+	marketData, err := c.service.GetMarketData(ctx, symbol)
 	if err != nil {
-		if eris.Is(err, marketservice.ErrSymbolNotFound) {
+		if eris.Is(err, market.ErrSymbolNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Symbol not found"})
 		} else {
 			log.Error().Err(err).Str("symbol", symbol).Msg("Error getting market data")

@@ -2,15 +2,18 @@ package main
 
 import (
 	"fmt"
+	"github.com/market-data/internal/domain/market"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/market-data/internal/config"
-	"github.com/market-data/internal/controller"
 	"github.com/market-data/internal/database"
-	"github.com/market-data/pkg/marketservice"
+	"github.com/market-data/internal/database/migration"
+	"github.com/market-data/internal/interfaces/api"
 )
 
 func main() {
@@ -31,20 +34,26 @@ func main() {
 	}
 
 	// Initialize database
-	var db *database.DB
-	var serviceOpts []marketservice.ServiceOption
-
-	db, err = database.NewWithConfig(&cfg.Database)
+	db, err := database.NewWithConfig(&cfg.Database)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to connect to database")
 		log.Fatal().Msg("Database connection is required")
 	}
 	defer db.Close()
 	log.Info().Msg("Database connection established")
-	serviceOpts = append(serviceOpts, marketservice.WithDatabase(db))
+
+	// Run database migrations
+	migrator := migration.NewMigrator(&cfg.Migrations, cfg.Database.GetSchemaConnectionString())
+	if err := migrator.RunMigrations(); err != nil {
+		log.Error().Err(err).Msg("Failed to run database migrations")
+		log.Fatal().Msg("Database migrations are required")
+	}
+
+	// Initialize repository
+	marketRepo := market.NewMarketRepository(db)
 
 	// Initialize market data service
-	service := marketservice.NewService(serviceOpts...)
+	marketSvc := market.NewMarketService(marketRepo)
 
 	// Initialize Gin router
 	router := gin.New()
@@ -69,8 +78,8 @@ func main() {
 	})
 
 	// Initialize controllers
-	healthController := controller.NewHealthController()
-	marketController := controller.NewMarketController(service)
+	healthController := api.NewHealthController()
+	marketController := api.NewMarketController(marketSvc)
 
 	// Register routes
 	healthController.RegisterRoutes(router)

@@ -63,7 +63,6 @@ func NewWithConfig(dbConfig *config.DatabaseConfig) (*DB, error) {
 	return &DB{Pool: pool}, nil
 }
 
-
 // Close closes the database connection pool
 func (db *DB) Close() {
 	if db.Pool != nil {

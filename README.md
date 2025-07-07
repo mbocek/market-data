@@ -14,6 +14,7 @@ This service provides real-time and historical market data for financial instrum
 - Configuration management with Viper
 - Error handling with Eris
 - Database integration with pgx
+- Database migrations with golang-migrate
 - Testing with Testify
 - Docker and Docker Compose support
 
@@ -24,14 +25,16 @@ market-data/
 ├── cmd/
 │   └── market-data/     # Main application entry point
 ├── config/              # Configuration files
-├── db/                  # Database initialization scripts
+├── db/                  # Database scripts
+│   └── migrations/      # Database migration files
 ├── internal/            # Private application code
 │   ├── config/          # Configuration management
-│   ├── controller/      # HTTP controllers
-│   ├── data/            # Data models and repository
-│   └── database/        # Database connection and utilities
-├── pkg/                 # Public libraries
-│   └── marketservice/   # Market data service
+│   ├── database/        # Database connection and utilities
+│   │   └── migration/   # Database migration functionality
+│   ├── domain/          # Domain models and business logic
+│   │   └── market/      # Market data domain
+│   └── interfaces/      # Interface adapters
+│       └── api/         # API controllers
 ├── tmp/                 # Build artifacts (gitignored)
 ├── Dockerfile           # Container definition
 ├── docker-compose.yml   # Container orchestration
@@ -107,7 +110,30 @@ docker compose down
 
 ## Database
 
-The service uses TimescaleDB, a PostgreSQL extension optimized for time-series data. When running with Docker Compose, the database is automatically set up with the schema defined in `db/init.sql`.
+The service uses TimescaleDB, a PostgreSQL extension optimized for time-series data. The database schema is managed through migrations using the golang-migrate library.
+
+### Database Migrations
+
+The service uses database migrations to manage schema changes. Migrations are stored in the `db/migrations` directory and are automatically applied when the service starts. Each migration consists of two files:
+
+- `<version>_<name>.up.sql` - SQL to apply the migration
+- `<version>_<name>.down.sql` - SQL to roll back the migration
+
+The service includes the following migration commands in the Makefile:
+
+```bash
+# Create a new migration file
+make migrate-create
+
+# Run all pending migrations
+make migrate-up
+
+# Roll back the most recent migration
+make migrate-down
+
+# Roll back all migrations
+make migrate-reset
+```
 
 ### Database Schema
 
@@ -168,6 +194,11 @@ logging:
   format: "json" # json, console
   output: "stdout" # stdout, file
   file_path: "logs/market-data.log" # only used if output is file
+
+# Migrations configuration
+migrations:
+  enabled: true
+  path: "db/migrations"
 ```
 
 ### Environment Variables
@@ -181,3 +212,5 @@ Environment variables can be used to override configuration settings:
 - `DATABASE_PASSWORD` - Database password
 - `DATABASE_NAME` - Database name
 - `LOGGING_LEVEL` - Logging level (default: "info")
+- `MIGRATIONS_ENABLED` - Enable or disable migrations (default: true)
+- `MIGRATIONS_PATH` - Path to migration files (default: "db/migrations")

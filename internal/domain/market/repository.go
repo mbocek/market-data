@@ -1,30 +1,28 @@
-package data
+package market
 
 import (
 	"context"
-	"time"
-
 	"github.com/jackc/pgx/v5"
+	"github.com/market-data/internal/database"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
-
-	"github.com/market-data/internal/database"
+	"time"
 )
 
-// Repository provides methods for storing and retrieving market data
-type Repository struct {
+// MarketRepository implements the market.Repository interface using PostgreSQL
+type MarketRepository struct {
 	db *database.DB
 }
 
-// NewRepository creates a new market data repository
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{
+// NewMarketRepository creates a new market data repository
+func NewMarketRepository(db *database.DB) *MarketRepository {
+	return &MarketRepository{
 		db: db,
 	}
 }
 
 // GetMarketData retrieves market data for a specific symbol from the database
-func (r *Repository) GetMarketData(ctx context.Context, symbol string) (*MarketData, error) {
+func (r *MarketRepository) GetMarketData(ctx context.Context, symbol string) (*MarketData, error) {
 	query := `
 		SELECT s.symbol, sp.close_price, sp.volume, sp.time
 		FROM stock_prices sp
@@ -44,7 +42,7 @@ func (r *Repository) GetMarketData(ctx context.Context, symbol string) (*MarketD
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, eris.Wrap(err, "market data not found")
+			return nil, ErrSymbolNotFound
 		}
 		return nil, eris.Wrapf(err, "failed to get market data for symbol: %s", symbol)
 	}
@@ -53,7 +51,7 @@ func (r *Repository) GetMarketData(ctx context.Context, symbol string) (*MarketD
 }
 
 // SaveMarketData saves market data to the database
-func (r *Repository) SaveMarketData(ctx context.Context, md *MarketData) error {
+func (r *MarketRepository) SaveMarketData(ctx context.Context, md *MarketData) error {
 	// Start a transaction
 	tx, err := r.db.Pool.Begin(ctx)
 	if err != nil {
@@ -109,7 +107,7 @@ func (r *Repository) SaveMarketData(ctx context.Context, md *MarketData) error {
 }
 
 // GetAllSymbols returns a list of all available symbols from the database
-func (r *Repository) GetAllSymbols(ctx context.Context) ([]string, error) {
+func (r *MarketRepository) GetAllSymbols(ctx context.Context) ([]string, error) {
 	query := `SELECT symbol FROM symbols ORDER BY symbol`
 
 	rows, err := r.db.QueryContext(ctx, query)

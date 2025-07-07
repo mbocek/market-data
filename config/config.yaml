@@ -7,11 +7,11 @@ server:
 
 # Database configuration
 database:
-  host: "timescaledb"
+  host: "localhost"
   port: 5432
   user: "postgres"
   password: "your_password_here"
-  dbname: "your_database_name"
+  dbname: "trading_db"
   sslmode: "disable"
   max_connections: 10
   connection_timeout: 5 # seconds
@@ -19,6 +19,11 @@ database:
 # Logging configuration
 logging:
   level: "info" # debug, info, warn, error
-  format: "json" # json, console
+  format: "console" # json, console
   output: "stdout" # stdout, file
   file_path: "logs/market-data.log" # only used if output is file
+
+# Migrations configuration
+migrations:
+  enabled: true
+  path: "db/migrations"

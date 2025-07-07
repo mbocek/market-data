@@ -12,9 +12,10 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Logging  LoggingConfig  `mapstructure:"logging"`
+	Server     ServerConfig     `mapstructure:"server"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	Logging    LoggingConfig    `mapstructure:"logging"`
+	Migrations MigrationsConfig `mapstructure:"migrations"`
 }
 
 // ServerConfig represents the server configuration
@@ -43,12 +44,24 @@ type LoggingConfig struct {
 	FilePath string `mapstructure:"file_path"`
 }
 
+// MigrationsConfig represents the database migrations configuration
+type MigrationsConfig struct {
+	Enabled bool   `mapstructure:"enabled"`
+	Path    string `mapstructure:"path"`
+}
+
 // GetConnectionString returns the database connection string
 func (dc *DatabaseConfig) GetConnectionString() string {
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		dc.Host, dc.Port, dc.User, dc.Password, dc.DBName, dc.SSLMode,
 	)
+}
+
+// GetSchemaConnectionString returns the database connection string including a schema parameter
+func (dc *DatabaseConfig) GetSchemaConnectionString() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		dc.User, dc.Password, dc.Host, dc.Port, dc.DBName, dc.SSLMode)
 }
 
 // GetConnectionTimeout returns the database connection timeout as a time.Duration
