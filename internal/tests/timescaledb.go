@@ -2,94 +2,103 @@ package tests
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
 	"github.com/market-data/internal/config"
 	"github.com/market-data/internal/database/migration"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"testing"
+)
 
-	// Import postgres driver for migrations
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+const (
+	defaultDBName     = "trading_db"
+	defaultDBUser     = "postgres"
+	defaultDBPassword = "your_password_here"
+	defaultPort       = "5432"
+	imageTag          = "timescale/timescaledb:latest-pg17"
 )
 
 type TimescaleDB struct {
-	ctx  context.Context
-	c    *postgres.PostgresContainer
-	dsn  string
-	conn *pgx.Conn
-	t    *testing.T
+	ctx       context.Context
+	container *postgres.PostgresContainer
+	dsn       string
+	conn      *pgx.Conn
+	testingT  *testing.T
 }
 
 func NewTimescaleDB(t *testing.T) *TimescaleDB {
 	ctx := context.Background()
 
-	// Start a TimescaleDB container using the Postgres module
 	pgContainer, err := postgres.Run(ctx,
-		"timescale/timescaledb:latest-pg17",
-		postgres.WithDatabase("trading_db"),
-		postgres.WithUsername("postgres"),
-		postgres.WithPassword("your_password_here"),
+		imageTag,
+		postgres.WithDatabase(defaultDBName),
+		postgres.WithUsername(defaultDBUser),
+		postgres.WithPassword(defaultDBPassword),
 		postgres.BasicWaitStrategies(),
 	)
-	if err != nil {
-		t.Fatalf("failed to start container: %v", err)
-	}
+	failIfErr(t, err, "failed to start container")
 
 	host, _ := pgContainer.Host(ctx)
-	port, _ := pgContainer.MappedPort(ctx, "5432")
-	dsn := fmt.Sprintf("postgres://postgres:your_password_here@%s:%s/trading_db?sslmode=disable", host, port.Port())
+	port, _ := pgContainer.MappedPort(ctx, defaultPort)
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", defaultDBUser, defaultDBPassword, host, port.Port(), defaultDBName)
 
-	// Connect and perform a basic operation
 	conn, err := pgx.Connect(ctx, dsn)
-	if err != nil {
-		t.Fatalf("failed to connect to db: %v", err)
-	}
+	failIfErr(t, err, "failed to connect to db")
 
 	return &TimescaleDB{
-		ctx:  ctx,
-		c:    pgContainer,
-		dsn:  dsn,
-		conn: conn,
-		t:    t,
+		ctx:       ctx,
+		container: pgContainer,
+		dsn:       dsn,
+		conn:      conn,
+		testingT:  t,
 	}
 }
 
-func (t *TimescaleDB) ApplyMigrations(config *config.MigrationsConfig) {
-	err := migration.NewMigrator(config, t.dsn).RunMigrations()
-	if err != nil {
-		t.t.Fatalf("failed to run migrations: %v", err)
-	}
+func (db *TimescaleDB) ApplyMigrations(migrations embed.FS) {
+	err := migration.NewMigrator(true, db.DSN(), migrations).RunMigrations()
+	failIfErr(db.testingT, err, "failed to run migrations")
 }
 
-func (t *TimescaleDB) Terminate() {
-	err := t.c.Terminate(t.ctx)
-	if err != nil {
-		t.t.Fatalf("failed to terminate container: %v", err)
-	}
+func (db *TimescaleDB) Terminate() {
+	err := db.container.Terminate(db.ctx)
+	failIfErr(db.testingT, err, "failed to terminate container")
 }
 
-// DSN returns the database connection string
-func (t *TimescaleDB) DSN() string {
-	return t.dsn
+func (db *TimescaleDB) DSN() string {
+	return db.dsn
 }
 
-// GetHost returns the host of the container
-func (t *TimescaleDB) GetHost() string {
-	host, err := t.c.Host(t.ctx)
-	if err != nil {
-		t.t.Fatalf("failed to get container host: %v", err)
-	}
+func (db *TimescaleDB) Host() string {
+	host, err := db.container.Host(db.ctx)
+	failIfErr(db.testingT, err, "failed to get container host")
 	return host
 }
 
-// GetPort returns the mapped port of the container
-func (t *TimescaleDB) GetPort() int {
-	port, err := t.c.MappedPort(t.ctx, "5432")
+func (db *TimescaleDB) Port() int {
+	port, err := db.container.MappedPort(db.ctx, defaultPort)
+	failIfErr(db.testingT, err, "failed to get container port")
+	return port.Int()
+}
+
+func failIfErr(t *testing.T, err error, msg string) {
 	if err != nil {
-		t.t.Fatalf("failed to get container port: %v", err)
+		t.Fatalf("%s: %v", msg, err)
 	}
-	portInt := port.Int()
-	return portInt
+}
+
+// DatabaseConfigForTimescale returns a DatabaseConfig using this container's dynamic host/port and project defaults.
+func (db *TimescaleDB) DatabaseConfigForTimescale() *config.DatabaseConfig {
+	return &config.DatabaseConfig{
+		Host:              db.Host(),
+		Port:              db.Port(),
+		User:              defaultDBUser,
+		Password:          defaultDBPassword,
+		DBName:            defaultDBName,
+		SSLMode:           "disable",
+		MaxConnections:    3,
+		ConnectionTimeout: 5,
+	}
 }

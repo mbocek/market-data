@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	data "github.com/market-data/db"
 	"github.com/market-data/internal/domain/market"
 	"time"
 
@@ -43,7 +44,7 @@ func main() {
 	log.Info().Msg("Database connection established")
 
 	// Run database migrations
-	migrator := migration.NewMigrator(&cfg.Migrations, cfg.Database.GetSchemaConnectionString())
+	migrator := migration.NewMigrator(cfg.Migrations.Enabled, cfg.Database.GetSchemaConnectionString(), data.Migrations)
 	if err := migrator.RunMigrations(); err != nil {
 		log.Error().Err(err).Msg("Failed to run database migrations")
 		log.Fatal().Msg("Database migrations are required")

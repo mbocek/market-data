@@ -46,8 +46,7 @@ type LoggingConfig struct {
 
 // MigrationsConfig represents the database migrations configuration
 type MigrationsConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Path    string `mapstructure:"path"`
+	Enabled bool `mapstructure:"enabled"`
 }
 
 // GetConnectionString returns the database connection string
