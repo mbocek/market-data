@@ -1,13 +1,15 @@
-package api
+package api_test
 
 import (
 	"context"
 	"encoding/json"
-	data "github.com/market-data/db"
+	"github.com/market-data/internal/interfaces/api"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	data "github.com/market-data/db"
 
 	"github.com/gin-gonic/gin"
 	"github.com/market-data/internal/database"
@@ -55,7 +57,7 @@ func TestMarketController_GetMarketData(t *testing.T) {
 	router := gin.New()
 
 	// Initialize controller and register routes
-	controller := NewMarketController(service)
+	controller := api.NewMarketController(service)
 	controller.RegisterRoutes(router)
 
 	// Test cases

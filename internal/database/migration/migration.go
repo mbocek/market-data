@@ -3,6 +3,7 @@ package migration
 import (
 	"embed"
 	"errors"
+
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/golang-migrate/migrate/v4/source/iofs"

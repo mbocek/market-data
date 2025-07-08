@@ -2,9 +2,12 @@ package market
 
 import (
 	"context"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/market-data/internal/
 	"github.com/jackc/pgx/v5"
 	"github.com/market-data/internal/database"
-	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 	"time"
 )

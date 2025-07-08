@@ -9,6 +9,9 @@ GOBIN=$(GOBASE)/bin
 GOTMP=$(GOBASE)/tmp
 GOFILES=$(wildcard *.go)
 
+# Linter variables
+GOLANGCI_VERSION=v2.2.1
+
 # Make is verbose in Linux. Make it silent.
 #MAKEFLAGS += --silent
 
@@ -60,32 +63,30 @@ migrate-create:
 	@read -p "Enter migration name: " name; \
 	migrate create -ext sql -dir db/migrations -seq $$name
 
-## migrate-up: Run all pending migrations
-migrate-up:
-	@echo "Running migrations..."
-	migrate -path db/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" up
+## lint-install: Install golangci-lint
+lint-install:
+	@echo "Installing golangci-lint $(GOLANGCI_VERSION)..."
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) $(GOLANGCI_VERSION)
 
-## migrate-down: Roll back the most recent migration
-migrate-down:
-	@echo "Rolling back migration..."
-	migrate -path db/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" down 1
+## lint: Run golangci-lint
+lint:
+	@echo "Running golangci-lint..."
+	@$(GOBIN)/golangci-lint version
+	@$(GOBIN)/golangci-lint run ./...
 
-## migrate-reset: Roll back all migrations
-migrate-reset:
-	@echo "Rolling back all migrations..."
-	migrate -path db/migrations -database "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" down
+## lint-fix: Run golangci-lint with auto-fix
+lint-fix:
+	@echo "Running golangci-lint with auto-fix..."
+	@$(GOBIN)/golangci-lint run --no-config --disable-all \
+		--enable=gofmt \
+		--enable=goimports \
+		--enable=misspell \
+		--enable=whitespace \
+		--fix ./...
 
 ## help: Display available commands
 help:
 	@echo "Available commands:"
 	@grep -E '^##' Makefile | sed -e 's/## //g'
 
-# Database connection variables (override these with environment variables if needed)
-DB_USER ?= postgres
-DB_PASSWORD ?= your_password_here
-DB_HOST ?= localhost
-DB_PORT ?= 5432
-DB_NAME ?= trading_db
-DB_SSLMODE ?= disable
-
-.PHONY: build run clean test docker-build docker-run docker-compose-up docker-compose-down migrate-create migrate-up migrate-down migrate-reset help
+.PHONY: build run clean test docker-build docker-run docker-compose-up docker-compose-down migrate-create migrate-up migrate-down migrate-reset lint lint-fix lint-install help

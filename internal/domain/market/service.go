@@ -3,6 +3,8 @@ package market
 import (
 	"context"
 	"errors"
+
+	"github.com/rs/zerolog/log
 	"github.com/rs/zerolog/log"
 )
 

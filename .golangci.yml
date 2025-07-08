@@ -1,0 +1,66 @@
+# golangci-lint configuration
+# https://golangci-lint.run/usage/configuration/
+version: "2"
+
+run:
+  # Timeout for running linters, default is 1m
+  timeout: 5m
+  # Include test files or not, default is true
+  tests: true
+  # Default concurrency is a available CPU number
+  concurrency: 4
+  # Allow issues to be reported from go modules
+  modules-download-mode: readonly
+  # Build tags to consider during linting
+  build-tags:
+    - integration
+  # Allow multiple parallel golangci-lint instances running
+  allow-parallel-runners: true
+  # Allow using the Go modules mechanism
+  go: "1.24"
+
+# Output configuration options
+output:
+  # Format: colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
+  formats:
+    text:
+      colors: true
+      print-issued-lines: true
+      print-linter-name: true
+      path: stdout
+
+
+# All available linters and their configuration
+linters:
+  enable:
+    - errcheck      # Detect unchecked errors
+    - govet         # Examine Go source code and reports suspicious constructs
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Go static analysis
+    - unused        # Check for unused constants, variables, functions and types
+    - gosec         # Inspects source code for security problems
+    - misspell      # Find commonly misspelled English words in comments
+    - revive        # Fast, configurable, extensible, flexible, and beautiful linter for Go
+    - unconvert     # Remove unnecessary type conversions
+    - unparam       # Find unused function parameters
+    - whitespace    # Tool for detection of leading and trailing whitespace
+  settings:
+    errcheck:
+      # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
+      check-type-assertions: true
+      # Report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`.
+      check-blank: true
+
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+          disabled: false
+          arguments:
+            - "checkPrivateReceivers"
+            - "disableStutteringCheck"
+issues:
+  # Maximum count of issues with the same text
+  max-same-issues: 3
+  # Maximum issues count per one linter
+  max-issues-per-linter: 50

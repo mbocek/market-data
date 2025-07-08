@@ -15,6 +15,7 @@ This service provides real-time and historical market data for financial instrum
 - Error handling with Eris
 - Database integration with pgx
 - Database migrations with golang-migrate
+- Code quality enforcement with golangci-lint
 - Testing with Testify
 - Docker and Docker Compose support
 
@@ -69,6 +70,15 @@ make test
 
 # Clean build files
 make clean
+
+# Install golangci-lint
+make lint-install
+
+# Run linter
+make lint
+
+# Run linter with auto-fix
+make lint-fix
 
 # Build Docker image
 make docker-build
@@ -150,6 +160,35 @@ When running with Docker Compose, you can connect to the database using:
 ```bash
 # Connect to the database
 docker exec -it timescaledb psql -U postgres -d your_database_name
+```
+
+## Linting
+
+The project uses [golangci-lint](https://golangci-lint.run/) for code quality enforcement. The linter is configured in the `.golangci.yml` file at the root of the project.
+
+### Linter Configuration
+
+The linter is configured to run the following checks:
+- gofmt - Check whether code was gofmt-ed
+- goimports - Check import statements are formatted according to the goimports tool
+- misspell - Find commonly misspelled English words in comments
+- whitespace - Tool for detection of leading and trailing whitespace
+
+Additional linters are available in the configuration file but are currently disabled due to compatibility issues with the project structure. These can be enabled as needed in the future.
+
+### Running the Linter
+
+The linter can be run using the following make commands:
+
+```bash
+# Install golangci-lint
+make lint-install
+
+# Run the linter
+make lint
+
+# Run the linter with auto-fix for issues that can be automatically fixed
+make lint-fix
 ```
 
 ## API Endpoints

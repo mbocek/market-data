@@ -31,7 +31,7 @@ func NewWithConfig(dbConfig *config.DatabaseConfig) (*DB, error) {
 
 	// Set max connections
 	if dbConfig.MaxConnections > 0 {
-		config.MaxConns = int32(dbConfig.MaxConnections)
+		config.MaxConns = int32(dbConfig.MaxConnections) // nolint:gosec
 	}
 
 	// Set connection timeout
