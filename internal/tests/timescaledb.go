@@ -8,6 +8,10 @@ import (
 	"github.com/market-data/internal/database/migration"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"testing"
+
+	// Import postgres driver for migrations
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 type TimescaleDB struct {
@@ -27,6 +31,7 @@ func NewTimescaleDB(t *testing.T) *TimescaleDB {
 		postgres.WithDatabase("trading_db"),
 		postgres.WithUsername("postgres"),
 		postgres.WithPassword("your_password_here"),
+		postgres.BasicWaitStrategies(),
 	)
 	if err != nil {
 		t.Fatalf("failed to start container: %v", err)
@@ -63,4 +68,28 @@ func (t *TimescaleDB) Terminate() {
 	if err != nil {
 		t.t.Fatalf("failed to terminate container: %v", err)
 	}
+}
+
+// DSN returns the database connection string
+func (t *TimescaleDB) DSN() string {
+	return t.dsn
+}
+
+// GetHost returns the host of the container
+func (t *TimescaleDB) GetHost() string {
+	host, err := t.c.Host(t.ctx)
+	if err != nil {
+		t.t.Fatalf("failed to get container host: %v", err)
+	}
+	return host
+}
+
+// GetPort returns the mapped port of the container
+func (t *TimescaleDB) GetPort() int {
+	port, err := t.c.MappedPort(t.ctx, "5432")
+	if err != nil {
+		t.t.Fatalf("failed to get container port: %v", err)
+	}
+	portInt := port.Int()
+	return portInt
 }
