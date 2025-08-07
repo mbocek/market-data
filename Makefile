@@ -11,6 +11,8 @@ GOFILES=$(wildcard *.go)
 
 # Linter variables
 GOLANGCI_VERSION=v2.2.1
+# Test variables
+GOTESTSUM_VERSION=v1.12.3
 
 # Make is verbose in Linux. Make it silent.
 #MAKEFLAGS += --silent
@@ -35,7 +37,7 @@ clean:
 ## test: Run tests
 test:
 	@echo "Testing..."
-	go test -v ./...
+	$(GOBIN)/gotestsum --format testname ./...
 
 ## docker-build: Build docker image
 docker-build:
@@ -63,10 +65,16 @@ migrate-create:
 	@read -p "Enter migration name: " name; \
 	migrate create -ext sql -dir db/migrations -seq $$name
 
-## lint-install: Install golangci-lint
-lint-install:
+## install-tools: Install golangci-lint, gotestsum
+install-tools:
 	@echo "Installing golangci-lint $(GOLANGCI_VERSION)..."
 	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) $(GOLANGCI_VERSION)
+	@echo "Installing gotestsum $(GOTESTSUM_VERSION)..."
+	@mkdir -p $(GOBIN)
+	@if [ ! -f $(GOBIN)/gotestsum ]; then \
+		GOBIN=$(GOBIN) go install gotest.tools/gotestsum@$(GOTESTSUM_VERSION); \
+	fi
+
 
 ## lint: Run golangci-lint
 lint:

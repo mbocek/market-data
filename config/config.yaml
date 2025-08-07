@@ -18,7 +18,7 @@ database:
 
 # Logging configuration
 logging:
-  level: "info" # debug, info, warn, error
+  level: "debug" # debug, info, warn, error
   format: "console" # json, console
   output: "stdout" # stdout, file
   file_path: "logs/market-data.log" # only used if output is file
@@ -27,3 +27,13 @@ logging:
 migrations:
   enabled: true
   path: "db/migrations"
+
+# Yahoo Finance API configuration
+yahoo_finance:
+  base_url: "https://query1.finance.yahoo.com/v8/finance/chart/"
+  request_timeout: 10 # seconds
+  retry_count: 3
+  retry_wait_time: 500 # milliseconds
+  default_symbols: ["AAPL", "MSFT", "GOOG", "AMZN", "META"]
+  update_interval: 15 # minutes
+  enable_auto_update: true

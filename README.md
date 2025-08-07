@@ -10,6 +10,8 @@ This service provides real-time and historical market data for financial instrum
 
 - RESTful API using Gin web framework
 - Time-series data storage with TimescaleDB
+- Yahoo Finance integration for market data
+- Automatic data updates from external sources
 - Structured logging with Zerolog
 - Configuration management with Viper
 - Error handling with Eris
@@ -34,8 +36,10 @@ market-data/
 │   │   └── migration/   # Database migration functionality
 │   ├── domain/          # Domain models and business logic
 │   │   └── market/      # Market data domain
-│   └── interfaces/      # Interface adapters
-│       └── api/         # API controllers
+│   ├── interfaces/      # Interface adapters
+│   │   └── api/         # API controllers
+│   └── providers/       # External data providers
+│       └── yahoo/       # Yahoo Finance integration
 ├── tmp/                 # Build artifacts (gitignored)
 ├── Dockerfile           # Container definition
 ├── docker-compose.yml   # Container orchestration
@@ -191,6 +195,34 @@ make lint
 make lint-fix
 ```
 
+## Data Providers
+
+The service supports fetching market data from external providers. Currently, the following providers are implemented:
+
+### Yahoo Finance
+
+The service integrates with Yahoo Finance to fetch real-time and historical market data. The Yahoo Finance integration:
+
+- Fetches OHLCV (Open, High, Low, Close, Volume) data for configured symbols
+- Supports automatic periodic updates based on configuration
+- Implements retry logic for resilience against API failures
+- Transforms Yahoo Finance data to the internal domain model
+
+The Yahoo Finance integration can be configured in the `config.yaml` file:
+
+```yaml
+yahoo_finance:
+  base_url: "https://query1.finance.yahoo.com/v8/finance/chart/"
+  request_timeout: 10 # seconds
+  retry_count: 3
+  retry_wait_time: 500 # milliseconds
+  default_symbols: ["AAPL", "MSFT", "GOOG", "AMZN", "META"]
+  update_interval: 15 # minutes
+  enable_auto_update: true
+```
+
+When `enable_auto_update` is set to `true`, the service will automatically fetch data for all configured symbols at the specified interval.
+
 ## API Endpoints
 
 - `GET /` - Service status
@@ -238,6 +270,16 @@ logging:
 migrations:
   enabled: true
   path: "db/migrations"
+
+# Yahoo Finance API configuration
+yahoo_finance:
+  base_url: "https://query1.finance.yahoo.com/v8/finance/chart/"
+  request_timeout: 10 # seconds
+  retry_count: 3
+  retry_wait_time: 500 # milliseconds
+  default_symbols: ["AAPL", "MSFT", "GOOG", "AMZN", "META"]
+  update_interval: 15 # minutes
+  enable_auto_update: true
 ```
 
 ### Environment Variables

@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS symbols
 (
     id         SERIAL PRIMARY KEY,                -- Unique identifier for each symbol
     symbol     TEXT        NOT NULL UNIQUE,       -- Stock ticker symbol (e.g., AAPL)
-    name       TEXT,                              -- Full company name
-    exchange   TEXT,                              -- Exchange where the symbol is listed (e.g., NASDAQ)
+    name       TEXT        NOT NULL,              -- Full company name
+    exchange   TEXT        NOT NULL,              -- Exchange where the symbol is listed (e.g., NASDAQ)
     created_at TIMESTAMPTZ NOT NULL DEFAULT now() -- Timestamp when the record was created
 );
 
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS symbols
 --    This will later be converted into a hypertable for efficient time-series operations
 CREATE TABLE IF NOT EXISTS stock_prices
 (
-    time        TIMESTAMPTZ NOT NULL,                         -- Timestamp of the price data point
     symbol_id   INTEGER     NOT NULL REFERENCES symbols (id), -- Foreign key to symbols table
+    time        TIMESTAMPTZ NOT NULL,                         -- Timestamp of the price data point
     open_price  NUMERIC(18, 6),                               -- Opening price for the interval
     high_price  NUMERIC(18, 6),                               -- Highest price during the interval
     low_price   NUMERIC(18, 6),                               -- Lowest price during the interval
@@ -46,7 +46,7 @@ SELECT add_retention_policy('stock_prices', INTERVAL '1 year');
 CREATE TABLE IF NOT EXISTS price_fetch_logs
 (
     id          SERIAL PRIMARY KEY,                 -- Unique identifier for each log entry
-    symbol_id   INTEGER REFERENCES symbols (id),    -- Which symbol was fetched
+    symbol      TEXT,                               -- Which symbol was fetched
     fetched_at  TIMESTAMPTZ NOT NULL DEFAULT now(), -- Timestamp of when the fetch occurred
     data_points INTEGER,                            -- Number of data points retrieved during fetch
     success     BOOLEAN     NOT NULL,               -- Whether the fetch operation succeeded

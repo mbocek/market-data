@@ -1,14 +1,47 @@
 package api
 
 import (
+	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog/log"
-
 	"github.com/market-data/internal/domain/market"
 )
+
+type SymbolPrice struct {
+	Time     time.Time `json:"time"`
+	Open     *float64  `json:"open"`
+	High     *float64  `json:"high"`
+	Low      *float64  `json:"low"`
+	Close    *float64  `json:"close"`
+	AdjClose *float64  `json:"adjClose"`
+	Volume   *int64    `json:"volume"`
+}
+
+type MarketData struct {
+	Symbol      string        `json:"symbol"`
+	SymbolPrice []SymbolPrice `json:"symbolPrice"`
+}
+
+func buildMarketData(symbol *market.Symbol, price *market.StockPrices) *MarketData {
+	var symbolPrice []SymbolPrice
+	for _, p := range *price {
+		symbolPrice = append(symbolPrice, SymbolPrice{
+			Time:     p.Time,
+			Open:     p.OpenPrice,
+			High:     p.HighPrice,
+			Low:      p.LowPrice,
+			Close:    p.ClosePrice,
+			AdjClose: p.AdjClose,
+			Volume:   p.Volume,
+		})
+	}
+	return &MarketData{
+		Symbol:      symbol.Symbol,
+		SymbolPrice: symbolPrice,
+	}
+}
 
 // MarketController handles market data related endpoints
 type MarketController struct {
@@ -27,7 +60,6 @@ func (c *MarketController) RegisterRoutes(router *gin.Engine) {
 	router.GET("/symbols/:symbol", c.getMarketData)
 }
 
-// getMarketData handles the request to get market data for a specific symbol
 func (c *MarketController) getMarketData(ctx *gin.Context) {
 	symbol := ctx.Param("symbol")
 	if symbol == "" {
@@ -35,16 +67,19 @@ func (c *MarketController) getMarketData(ctx *gin.Context) {
 		return
 	}
 
-	marketData, err := c.service.GetMarketData(ctx, symbol)
+	symbolData, stockPricesData, err := c.service.GetMarketData(ctx, symbol)
 	if err != nil {
-		if eris.Is(err, market.ErrSymbolNotFound) {
+		if errors.Is(err, market.ErrSymbolNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Symbol not found"})
-		} else {
-			log.Error().Err(err).Str("symbol", symbol).Msg("Error getting market data")
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
 		}
+		// Handle different types of errors appropriately
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving market data"})
 		return
 	}
+
+	// Build the response using the helper function
+	marketData := buildMarketData(symbolData, stockPricesData)
 
 	ctx.JSON(http.StatusOK, marketData)
 }

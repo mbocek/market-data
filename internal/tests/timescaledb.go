@@ -75,6 +75,13 @@ func (db *TimescaleDB) ApplyMigrations(migrations embed.FS) {
 	failIfErr(db.testingT, err, "failed to run migrations")
 }
 
+// ApplyMigrationsWitTableName applies database migrations using the specified table name to track migration history.
+func (db *TimescaleDB) ApplyMigrationsWitTableName(migrations embed.FS, tableName string) {
+	dsn := fmt.Sprintf("%s&x-migrations-table=%s", db.DSN(), tableName)
+	err := migration.NewMigrator(true, dsn, migrations).RunMigrations()
+	failIfErr(db.testingT, err, "failed to run migrations")
+}
+
 // Terminate shuts down and removes the database container.
 // Use this to clean up resources after test execution.
 func (db *TimescaleDB) Terminate() {

@@ -12,10 +12,11 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server     ServerConfig     `mapstructure:"server"`
-	Database   DatabaseConfig   `mapstructure:"database"`
-	Logging    LoggingConfig    `mapstructure:"logging"`
-	Migrations MigrationsConfig `mapstructure:"migrations"`
+	Server       ServerConfig       `mapstructure:"server"`
+	Database     DatabaseConfig     `mapstructure:"database"`
+	Logging      LoggingConfig      `mapstructure:"logging"`
+	Migrations   MigrationsConfig   `mapstructure:"migrations"`
+	YahooFinance YahooFinanceConfig `mapstructure:"yahoo_finance"`
 }
 
 // ServerConfig represents the server configuration
@@ -49,6 +50,32 @@ type MigrationsConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+// YahooFinanceConfig represents the Yahoo Finance API configuration
+type YahooFinanceConfig struct {
+	BaseURL          string   `mapstructure:"base_url"`
+	RequestTimeout   int      `mapstructure:"request_timeout"`
+	RetryCount       int      `mapstructure:"retry_count"`
+	RetryWaitTime    int      `mapstructure:"retry_wait_time"`
+	DefaultSymbols   []string `mapstructure:"default_symbols"`
+	UpdateInterval   int      `mapstructure:"update_interval"`
+	EnableAutoUpdate bool     `mapstructure:"enable_auto_update"`
+}
+
+// GetRequestTimeout returns the request timeout as a time.Duration
+func (yfc *YahooFinanceConfig) GetRequestTimeout() time.Duration {
+	return time.Duration(yfc.RequestTimeout) * time.Second
+}
+
+// GetRetryWaitTime returns the retry wait time as a time.Duration
+func (yfc *YahooFinanceConfig) GetRetryWaitTime() time.Duration {
+	return time.Duration(yfc.RetryWaitTime) * time.Millisecond
+}
+
+// GetUpdateInterval returns the update interval as a time.Duration
+func (yfc *YahooFinanceConfig) GetUpdateInterval() time.Duration {
+	return time.Duration(yfc.UpdateInterval) * time.Minute
+}
+
 // GetConnectionString returns the database connection string
 func (dc *DatabaseConfig) GetConnectionString() string {
 	return fmt.Sprintf(
@@ -71,7 +98,7 @@ func (dc *DatabaseConfig) GetConnectionTimeout() time.Duration {
 // ConfigureLogging configures the zerolog logger based on the logging configuration
 func (lc *LoggingConfig) ConfigureLogging() {
 	// Set time format
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixNano
 
 	// Set log level
 	switch lc.Level {
@@ -89,7 +116,7 @@ func (lc *LoggingConfig) ConfigureLogging() {
 
 	// Set output format
 	if lc.Format == "console" {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339Nano})
 	}
 }
 
@@ -106,6 +133,15 @@ func Load() (*Config, error) {
 	viper.SetDefault("logging.level", "info")
 	viper.SetDefault("logging.format", "json")
 	viper.SetDefault("logging.output", "stdout")
+
+	// Yahoo Finance defaults
+	viper.SetDefault("yahoo_finance.base_url", "https://query1.finance.yahoo.com/v8/finance/chart/")
+	viper.SetDefault("yahoo_finance.request_timeout", 10)
+	viper.SetDefault("yahoo_finance.retry_count", 3)
+	viper.SetDefault("yahoo_finance.retry_wait_time", 500)
+	viper.SetDefault("yahoo_finance.default_symbols", []string{"AAPL", "MSFT", "GOOG"})
+	viper.SetDefault("yahoo_finance.update_interval", 15)
+	viper.SetDefault("yahoo_finance.enable_auto_update", true)
 
 	// Read environment variables
 	viper.AutomaticEnv()

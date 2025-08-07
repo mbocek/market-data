@@ -1,11 +1,18 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	data "github.com/market-data/db"
 	"github.com/market-data/internal/domain/market"
+	"github.com/market-data/internal/providers/yahoo"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -28,7 +35,23 @@ func main() {
 	runMigrations(cfg.Migrations.Enabled, cfg.Database.GetSchemaConnectionString())
 
 	router := initRouter()
-	registerControllers(router, db)
+	// Create market repository and service
+	marketRepo := market.NewMarketRepository(db)
+	yahooClient := createYahooProvider(&cfg.YahooFinance)
+	marketSvc := market.NewMarketService(marketRepo, yahooClient)
+
+	// Configure auto-update settings
+	marketSvc.SetAutoUpdateSettings(
+		cfg.YahooFinance.GetUpdateInterval(),
+		cfg.YahooFinance.EnableAutoUpdate,
+	)
+
+	// Start auto-update if enabled
+	//if cfg.YahooFinance.EnableAutoUpdate {
+	//	marketSvc.StartAutoUpdate()
+	//}
+
+	registerControllers(router, marketSvc)
 
 	startServer(router, cfg.Server.Host, cfg.Server.Port)
 }
@@ -87,9 +110,13 @@ func requestLoggingMiddleware(c *gin.Context) {
 		Msg("Request processed")
 }
 
-func registerControllers(router *gin.Engine, db *database.DB) {
-	marketRepo := market.NewMarketRepository(db)
-	marketSvc := market.NewMarketService(marketRepo)
+func createYahooProvider(cfg *config.YahooFinanceConfig) *yahoo.Client {
+	// Create and configure Yahoo Finance client
+	return yahoo.NewClient(cfg)
+}
+
+func registerControllers(router *gin.Engine, marketSvc *market.MarketService) {
+	// Register controllers
 	healthController := api.NewHealthController()
 	marketController := api.NewMarketController(marketSvc)
 	healthController.RegisterRoutes(router)
@@ -98,8 +125,31 @@ func registerControllers(router *gin.Engine, db *database.DB) {
 
 func startServer(router *gin.Engine, host, port string) {
 	serverAddr := fmt.Sprintf("%s:%s", host, port)
-	log.Info().Str("address", serverAddr).Msg("Market Data Service starting")
-	if err := router.Run(serverAddr); err != nil {
-		log.Fatal().Err(err).Msg("Error starting server")
+	server := &http.Server{
+		Addr:              serverAddr,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	// Channel to listen for shutdown signals
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		log.Info().Str("address", serverAddr).Msg("Market Data Service starting")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Err(err).Msg("Error starting server")
+		}
+	}()
+
+	<-quit
+	log.Info().Msg("Shutdown signal received, shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Error().Err(err).Msg("Server forced to shutdown")
+	} else {
+		log.Info().Msg("Server exited gracefully")
 	}
 }

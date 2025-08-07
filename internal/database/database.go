@@ -93,3 +93,33 @@ func (db *DB) QueryContext(ctx context.Context, sql string, args ...interface{})
 func (db *DB) QueryRowContext(ctx context.Context, sql string, args ...interface{}) pgx.Row {
 	return db.Pool.QueryRow(ctx, sql, args...)
 }
+
+func (db *DB) InTransaction(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	conn, err := db.Pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			err := tx.Rollback(ctx)
+			if err != nil {
+			}
+		}
+	}()
+
+	err = fn(tx)
+	if err != nil {
+		err := tx.Rollback(ctx)
+		if err != nil {
+			return err
+		}
+		return err
+	}
+	return tx.Commit(ctx)
+}
